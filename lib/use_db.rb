@@ -33,7 +33,7 @@ module UseDbPlugin
   end
   
   def self.all_connections
-    return @@use_dbs.map(&:connection)
+    return @@use_dbs.map(&:connection).uniq
   end
   
   def self.debug_print
