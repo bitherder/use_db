@@ -32,6 +32,10 @@ module UseDbPlugin
     return @@use_dbs
   end
   
+  def self.all_connections
+    return @@use_dbs.map(&:connection)
+  end
+  
   def self.debug_print
     return @@debug_print
   end

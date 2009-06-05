@@ -6,6 +6,7 @@ require 'active_record/fixtures'
 require "override_fixtures"
 require 'active_record/migration'
 require 'override_test_case'
+require 'override_callbacks'
 require "migration"
 
 ActiveRecord::Base.extend(UseDbPlugin)
