@@ -1,4 +1,4 @@
-puts "Overriding test fixture setup and teardown callbacks"
+# puts "Overriding test fixture setup and teardown callbacks"
 
 module ActiveRecord #:nodoc:
   module TestFixtures #:nodoc:
