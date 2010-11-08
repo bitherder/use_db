@@ -2,12 +2,19 @@
 # task :use_db do
 #   # Task goes here
 # end
+$: << Pathname.new(__FILE__).dirname + '../..'
+$: << Pathname.new(__FILE__).dirname + '..'
+# require 'init'
+# require 'test_model'
 
 namespace :db do
   namespace :structure do
+    desc "dump the database structure of the database specified by use_db"
     task :dump_use_db do            
-      require "use_db.rb"
-      require "test_model.rb"
+      # require 'lib/use_db'
+      # require 'lib/test_model'
+      require 'init'
+      require 'lib/test_model'
       
       UseDbTest.other_databases.each do |options| 
         puts "DUMPING TEST DB: #{options.inspect}" if UseDbPlugin.debug_print
@@ -61,8 +68,10 @@ namespace :db do
     task :clone_structure => "db:test:clone_structure_use_db"
     
     task :clone_structure_use_db => ["db:structure:dump_use_db","db:test:purge_use_db"] do
-      require "use_db.rb"
-      require "test_model.rb"
+      # require "use_db.rb"
+      # require "test_model.rb"
+      require 'init'
+      require 'lib/test_model'
       
       UseDbTest.other_databases.each do |options|   
         
@@ -110,8 +119,10 @@ namespace :db do
     end
     
     task :purge_use_db => "db:test:purge" do
-      require "use_db.rb"
-      require "test_model.rb"
+      # require "use_db.rb"
+      # require "test_model.rb"
+      require 'init'
+      require 'lib/test_model'
 
       UseDbTest.other_databases.each do |options|
         puts "PURGING TEST DB: #{options.inspect}" if UseDbPlugin.debug_print
