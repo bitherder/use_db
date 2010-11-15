@@ -1,6 +1,6 @@
 # Include hook code here
 
-require "use_db"
+require "use_db_plugin"
 require "use_db_test"
 require 'active_record/fixtures'
 require "override_fixtures"

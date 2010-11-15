@@ -1,5 +1,5 @@
-require "use_db.rb"
-require "test_model.rb"
+require "use_db_plugin"
+require "test_model"
 
 class UseDbTest
 
