@@ -18,7 +18,7 @@ class UseDbTest
   def self.dump_db_structure(options)
     options_dup = options.dup
     options_dup[:rails_env] = "development"    
-    conn_spec = get_use_db_conn_spec(options_dup)
+    conn_spec = UseDbPlugin.db_conn_spec(options_dup)
     #establish_connection(conn_spec)
     
     test_class = setup_test_model(options[:prefix], options[:suffix], "ForDumpStructure")
@@ -61,7 +61,7 @@ class UseDbTest
   
   def self.clone_db_structure(options)
     options_dup = options.dup
-    conn_spec = get_use_db_conn_spec(options_dup)
+    conn_spec = UseDbPlugin.db_conn_spec(options_dup)
     #establish_connection(conn_spec)
     
     test_class = setup_test_model(options[:prefix], options[:suffix], "ForClone")    
@@ -102,7 +102,7 @@ class UseDbTest
   
   def self.purge_db(options)
     options_dup = options.dup
-    conn_spec = get_use_db_conn_spec(options_dup)
+    conn_spec = UseDbPlugin.db_conn_spec(options_dup)
     #establish_connection(conn_spec)
     
     test_class = setup_test_model(options[:prefix], options[:suffix], "ForPurge")    

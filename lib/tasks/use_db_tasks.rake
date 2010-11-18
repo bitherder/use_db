@@ -5,6 +5,175 @@
 $: << Pathname.new(__FILE__).dirname + '../..'
 $: << Pathname.new(__FILE__).dirname + '..'
 
+# , :rails_env => Rails.env || 'development'
+
+require 'init'
+def in_db_context(db_group)
+  ActiveRecord::Base.with_db db_group do
+    yield ActiveRecord::Base.connection.instance_eval{@config}
+  end
+end
+
+namespace :fordb do
+  db_groups = UseDbPlugin.load_config_file('use_db.yml').keys
+  db_groups.each do |db_group|    
+    namespace db_group do
+      desc 'Raises an error if there are pending migrations'
+      task :abort_if_pending_migrations => :environment do
+        UseDbPlugin.with_db db_group do |conn_config|
+          migration_dir = ActiveRecord::Base.migration_dir
+          puts "migration_dir: #{migration_dir}"
+          pending_migrations = ActiveRecord::Migrator.new(:up, migration_dir).pending_migrations
+
+          if pending_migrations.any?
+            puts "You have #{pending_migrations.size} pending migrations for #{db_group}:"
+            pending_migrations.each do |pending_migration|
+              puts '  %4d %s' % [pending_migration.version, pending_migration.name]
+            end
+            abort %{Run "rake db:migrate" to update your database then try again.}
+          end
+        end
+      end
+      
+      desc "Retrieves the charset for the current environment's database"
+      task :charset => :environment do
+        RAILS_ENV = UseDbPlugin.db_config_name(db_group)
+        Rake::Task['db:charset'].actions.first.call
+      end
+      
+      desc "Retrieves the collation for the current environment's database"
+      task :collation => :environment do
+        RAILS_ENV = UseDbPlugin.db_config_name(db_group)
+        Rake::Task['db:collation'].actions.first.call
+      end
+      
+      # TODO: @larry.baltz - implement per-databse create and drop tasks
+      # per-database create and drop tasks are not critical since they can be handled
+      # (at a gross level) by the system-wide db:create:all and db:drop:all tasks
+      #
+      # desc 'Create the database defined in config/database.yml for the current RAILS_ENV'
+      # task :create => ":db:load_config" do
+      #   create_database(ActiveRecord::Base.get_use_db_conn_spec(db_group))
+      # end
+      # 
+      # namespace :create do
+      #   desc 'Create all the local databases defined in config/database.yml'
+      #   task :all
+      # end
+      # 
+      # desc 'Drops the database for the current RAILS_ENV'
+      # task :drop
+      # 
+      # namespace :drop do
+      #   desc 'Drops all the local databases defined in config/database.yml'
+      #   task :all
+      # end
+      
+      namespace :fixtures do
+        desc 'Search for a fixture given a LABEL or ID.'
+        task :identify
+        desc "Load fixtures into the current environment's database."
+        task :load
+      end
+            
+      desc "Migrate the database through scripts in db/migrate and update db/schema.rb by "\
+        "invoking db:schema:dump. Target specific version with VERSION=x. Turn off output "\
+        "with VERBOSE=false."
+      task :migrate => :environment do
+        UseDbPlugin.with_db db_group do
+          ActiveRecord::Migration.verbose = ENV["VERBOSE"] ? ENV["VERBOSE"] == "true" : true
+          migration_dir = ActiveRecord::Base.migration_dir
+          ActiveRecord::Migrator.migrate(migration_dir, ENV["VERSION"] ? ENV["VERSION"].to_i : nil)
+          Rake::Task["fordb:#{db_group}:schema:dump"].invoke if ActiveRecord::Base.schema_format == :ruby
+        end
+      end
+      
+      namespace :migrate do
+        desc "Runs the 'down' for a given migration VERSION."
+        task :down
+        
+        desc "Rollbacks the database one migration and re migrate up."
+        task :redo
+        
+        desc "Resets your database using your migrations for the current environment"
+        task :reset
+        
+        desc "Runs the 'up' for a given migration VERSION."
+        task :up
+      end
+      
+      desc "Drops and recreates the database from db/schema.rb for the current environment "\
+        "and loads the seeds."
+      task :reset
+      
+      desc "Rolls the schema back to the previous version."
+      task :rollback
+      
+      namespace :schema do
+        desc "Create a db/schema.rb file that can be portably used against any DB supported by AR"
+        task :dump => :environment do
+          UseDbPlugin.with_db db_group do |conn_config|
+            ENV['SCHEMA'] = ActiveRecord::Base.schema_filename
+            Rake::Task['db:schema:dump'].actions.first.call
+          end
+          Rake::Task["fordb:#{db_group}:schema:dump"].reenable
+        end
+        
+        desc "Load a schema.rb file into the database"
+        task :load => :environment do
+          UseDbPlugin.with_db db_group do |conn_config|
+            ENV['SCHEMA'] = ActiveRecord::Base.schema_filename
+            Rake::Task['db:schema:load'].actions.first.call
+          end
+          Rake::Task["fordb:#{db_group}:schema:dump"].reenable
+          
+        end
+      end
+      desc "Load the seed data from db/seeds.rb"
+      task :seed
+      
+      namespace :sessions do
+        desc "Clear the sessions table"
+        task :clear
+        
+        desc "Creates a sessions migration for use with ActiveRecord::SessionStore"
+        task :create
+      end
+      desc "Create the database, load the schema, and initialize with the seed data"
+      task :setup
+      
+      namespace :structure do
+        desc "Dump the database structure to a SQL file"
+        task :dump
+      end
+      
+      namespace :test do
+        desc "Recreate the test database from the current environment's database schema"
+        task :clone
+        
+        desc "Recreate the test databases from the development structure"
+        task :clone_structure
+        
+        desc "Recreate the test database from the current schema.rb"
+        task :load
+        
+        desc "Check for pending migrations and load the test schema"
+        task :prepare
+        
+        desc "Empty the test database"
+        task :purge
+      end
+      
+      desc "Retrieves the current schema version number"
+      task :version => :environment do
+        UseDbPlugin.with_db db_group do
+          puts "Current version: #{ActiveRecord::Migrator.current_version}"
+        end
+      end
+    end
+  end
+end
+
 namespace :db do
   namespace :structure do
     desc "dump the database structure of the database specified by use_db"
