@@ -1,5 +1,3 @@
-# UseDb
-
 module UseDbPlugin
   # options can have one or the other of the following options:
   #   :prefix - Specify the prefix to append to the RAILS_ENV when finding the adapter secification in database.yml
