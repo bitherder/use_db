@@ -19,7 +19,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     end
 
     Rails.stubs(:root).returns(BASE_DIR+'test'+'rails_root')
-    FileUtils.rm_r(Rails.root)
+    FileUtils.rm_rf(Rails.root)
     Rails.root.mkpath
     (@db_dir = Rails.root+'db').mkpath
     (@config_dir = Rails.root+'config').mkpath
@@ -315,5 +315,113 @@ class UseDbPluginTest < Test::Unit::TestCase
 
      ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
      assert_equal 'db/bake_cake/schema.rb', ActiveRecord::Base.schema_filename
+  end
+  
+  def test_default_seed_file_with_config_from_file
+     database_config = {
+       "cake" => {'prefix' => 'cake_'},
+       "pie" => {'prefix' => 'pie_'}
+     }
+     connection_spec = {
+       'cake_test' => {'adapter' => 'sqlite3'}, 
+       'cake_development' => {'adapter' => 'sqlite3'},
+       'pie_test' => {'adapter' => 'sqlite3'},
+     }
+
+     Rails.stubs(:env).returns(:test)
+
+     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
+
+     ActiveRecord::Base.use_db('cake')
+     assert_equal 'db/cake/seed.rb', ActiveRecord::Base.seed_filename
+  end
+  
+  def test_seed_file_with_explicit_seed_file_and_config_from_file
+    db_dir = 'engine/cake/db'
+    seed_file = "#{db_dir}/seed.rb"
+     database_config = {
+       "cake" => {'prefix' => 'cake_', 'db_dir' => db_dir},
+       "pie" => {'prefix' => 'pie_'}
+     }
+     connection_spec = {
+       'cake_test' => {'adapter' => 'sqlite3'}, 
+       'cake_development' => {'adapter' => 'sqlite3'},
+       'pie_test' => {'adapter' => 'sqlite3'},
+     }
+
+     Rails.stubs(:env).returns(:test)
+
+     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
+
+     ActiveRecord::Base.use_db('cake')
+     assert_equal seed_file, ActiveRecord::Base.seed_filename
+  end
+
+  def test_seed_file_with_explicit_migration_dir_and_config_from_file
+    seed_filename = "engine/cake/db/seed.db"
+    database_config = {
+      "cake" => {'prefix' => 'cake_', 'seed_file' => seed_filename},
+      "pie" => {'prefix' => 'pie_'}
+    }
+    connection_spec = {
+      'cake_test' => {'adapter' => 'sqlite3'}, 
+      'cake_development' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
+    
+    ActiveRecord::Base.use_db('cake')
+    assert_equal seed_filename, ActiveRecord::Base.seed_filename
+  end
+
+  def test_default_seed_file_with_ad_hoc_config_and_only_prefix
+    connection_spec = {
+      'cake_test' => {'adapter' => 'sqlite3'}, 
+      'cake_development' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    
+    ActiveRecord::Base.use_db(:prefix => 'cake_')
+    assert_equal 'db/cake/seed.rb', ActiveRecord::Base.seed_filename
+  end
+
+  def test_default_seed_file_with_ad_hoc_config_and_only_suffix
+    connection_spec = {
+      'test_cake' => {'adapter' => 'sqlite3'}, 
+      'development_cake' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    
+    ActiveRecord::Base.use_db(:suffix => '_cake')
+    assert_equal 'db/cake/seed.rb', ActiveRecord::Base.seed_filename
+  end
+  
+  def test_default_seed_file_with_ad_hoc_config_with_prefix_and_suffix
+    connection_spec = {
+      'bake_test_cake' => {'adapter' => 'sqlite3'}, 
+      'bake_development_cake' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    
+    ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
+    assert_equal 'db/bake_cake/seed.rb', ActiveRecord::Base.seed_filename
   end
 end

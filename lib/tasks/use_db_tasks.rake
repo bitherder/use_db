@@ -18,6 +18,23 @@ namespace :fordb do
   db_groups = UseDbPlugin.load_config_file('use_db.yml').keys
   db_groups.each do |db_group|    
     namespace db_group do
+      task :load_config => :rails_env do
+        require 'active_record'
+        
+        group_config = UseDbPlugin.db_config(db_group)
+        all_configs = Rails::Configuration.new.database_configuration
+        group_configs = all_configs.inject({}) do |configs, (name, config)|
+          name = name
+          if name =~ /^#{group_config[:prefix]}(.*?)#{group_config[:suffix]}$/
+            configs[$1] = config
+          end
+          configs
+        end
+        
+        ActiveRecord::Base.configurations = group_configs
+      end
+      
+      
       desc 'Raises an error if there are pending migrations'
       task :abort_if_pending_migrations => :environment do
         UseDbPlugin.with_db db_group do |conn_config|
@@ -69,12 +86,12 @@ namespace :fordb do
       #   task :all
       # end
       
-      namespace :fixtures do
-        desc 'Search for a fixture given a LABEL or ID.'
-        task :identify
-        desc "Load fixtures into the current environment's database."
-        task :load
-      end
+      # namespace :fixtures do
+      #   desc 'Search for a fixture given a LABEL or ID.'
+      #   task :identify
+      #   desc "Load fixtures into the current environment's database."
+      #   task :load
+      # end
             
       desc "Migrate the database through scripts in db/migrate and update db/schema.rb by "\
         "invoking db:schema:dump. Target specific version with VERSION=x. Turn off output "\
@@ -88,26 +105,26 @@ namespace :fordb do
         end
       end
       
-      namespace :migrate do
-        desc "Runs the 'down' for a given migration VERSION."
-        task :down
-        
-        desc "Rollbacks the database one migration and re migrate up."
-        task :redo
-        
-        desc "Resets your database using your migrations for the current environment"
-        task :reset
-        
-        desc "Runs the 'up' for a given migration VERSION."
-        task :up
-      end
+      # namespace :migrate do
+      #   desc "Runs the 'down' for a given migration VERSION."
+      #   task :down
+      #   
+      #   desc "Rollbacks the database one migration and re migrate up."
+      #   task :redo
+      #   
+      #   desc "Resets your database using your migrations for the current environment"
+      #   task :reset
+      #   
+      #   desc "Runs the 'up' for a given migration VERSION."
+      #   task :up
+      # end
       
-      desc "Drops and recreates the database from db/schema.rb for the current environment "\
-        "and loads the seeds."
-      task :reset
-      
-      desc "Rolls the schema back to the previous version."
-      task :rollback
+      # desc "Drops and recreates the database from db/schema.rb for the current environment "\
+      #   "and loads the seeds."
+      # task :reset
+      # 
+      # desc "Rolls the schema back to the previous version."
+      # task :rollback
       
       namespace :schema do
         desc "Create a db/schema.rb file that can be portably used against any DB supported by AR"
@@ -126,42 +143,63 @@ namespace :fordb do
             Rake::Task['db:schema:load'].actions.first.call
           end
           Rake::Task["fordb:#{db_group}:schema:dump"].reenable
-          
         end
       end
-      desc "Load the seed data from db/seeds.rb"
-      task :seed
       
-      namespace :sessions do
-        desc "Clear the sessions table"
-        task :clear
-        
-        desc "Creates a sessions migration for use with ActiveRecord::SessionStore"
-        task :create
+      desc 'Load the seed data from seeds.rb'
+      task :seed => :environment do
+        seed_file = File.join(Rails.root, 'db', 'seeds.rb')
+        load(seed_file) if File.exist?(seed_file)
       end
-      desc "Create the database, load the schema, and initialize with the seed data"
-      task :setup
+      
+      # namespace :sessions do
+      #   desc "Clear the sessions table"
+      #   task :clear
+      #   
+      #   desc "Creates a sessions migration for use with ActiveRecord::SessionStore"
+      #   task :create
+      # end
+      
+      # desc "Create the database, load the schema, and initialize with the seed data"
+      # task :setup
       
       namespace :structure do
-        desc "Dump the database structure to a SQL file"
-        task :dump
+        # can't yet "Dump the database structure to a SQL file"
+        task :dump do
+          raise "fordb:#{db_group}:structure:dump not yet implemented"
+        end
       end
       
       namespace :test do
-        desc "Recreate the test database from the current environment's database schema"
-        task :clone
+        # can't yet "Recreate the test database from the current environment's database schema"
+        task :clone do
+          raise "fordb:#{db_group}:test:clone not implemented"
+        end
         
-        desc "Recreate the test databases from the development structure"
-        task :clone_structure
+        # can't yet "Recreate the test databases from the development structure"
+        task :clone_structure do
+          raise "fordb:#{db_group}:test:close_structure not implemented"
+        end
         
         desc "Recreate the test database from the current schema.rb"
-        task :load
+        task :load => "fordb:#{db_group}:test:purge" do
+          RAILS_ENV = 'test'
+          Rails.instance_eval{@_env = 'test'}
+          ActiveRecord::Schema.verbose = false
+          Rake::Task["fordb:#{db_group}:schema:load"].invoke
+        end
         
         desc "Check for pending migrations and load the test schema"
-        task :prepare
+        task :prepare => "fordb:#{db_group}:abort_if_pending_migrations" do
+          if defined?(ActiveRecord) && !ActiveRecord::Base.configurations.blank?
+            Rake::Task[{ :sql  => "fordb:#{db_group}:test:clone_structure", :ruby => "fordb:#{db_group}:test:load" }[ActiveRecord::Base.schema_format]].invoke
+          end
+        end
         
         desc "Empty the test database"
-        task :purge
+        task :purge => "fordb:#{db_group}:load_config" do
+          Rake::Task['db:test:purge'].actions.first.call
+        end
       end
       
       desc "Retrieves the current schema version number"

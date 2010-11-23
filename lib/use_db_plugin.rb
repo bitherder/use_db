@@ -118,30 +118,34 @@ module UseDbPlugin
     @use_db_config
   end
   
-  def migration_dir
-    if dir = @use_db_config[:migration_dir]
-      dir
+  def db_path(options)
+    config_option_name = options[:option_name] || raise(ArgumentError, ":option_name required")
+    path_base = options[:base] || raise(ArgumentError, ":base required")
+    
+    if path = @use_db_config[config_option_name.to_sym]
+      path
     elsif dir = @use_db_config[:db_dir]
-      (Pathname.new(dir)+'migrate').to_s
+      (Pathname.new(dir)+path_base).to_s
     elsif @use_db_config[:db_group]
-      "db/#{@use_db_config[:db_group]}/migrate"
+      "db/#{@use_db_config[:db_group]}/#{path_base}"
     elsif !(elements = [@use_db_config[:prefix], @use_db_config[:suffix]].compact).empty?
-      "db/#{elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')}/migrate"
+      "db/#{elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')}/#{path_base}"
     else
-      raise "can't determine where to find migrations for #{self.name}"
+      raise "can't determine where to find '#{path_base}' for #{self.name}"
     end
+    
+  end
+  
+  def migration_dir
+    db_path(:option_name => :migration_dir, :base => 'migrate')
   end
   
   def schema_filename
-    if file_name = @use_db_config[:schema_file]
-      file_name
-    elsif dir = @use_db_config[:db_dir]
-      (Pathname.new(dir)+'schema.rb').to_s
-    elsif !(elements = [@use_db_config[:prefix], @use_db_config[:suffix]].compact).empty?
-      "db/#{elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')}/schema.rb"
-    else
-      raise "can't determine location for schema.rb for #{self.name}"
-    end
+    db_path(:option_name => :schema_file, :base => 'schema.rb')
+  end
+  
+  def seed_filename
+    db_path(:option_name => :seed_file, :base => 'seed.rb')
   end
 end
 
