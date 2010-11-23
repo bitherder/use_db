@@ -121,7 +121,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
      ActiveRecord::Base.use_db('cake')
-     assert_equal 'db/cake/migrate', ActiveRecord::Base.migration_dir
+     assert_equal Pathname.new('db/cake/migrate'), ActiveRecord::Base.migration_dir
   end
   
   def test_migration_directory_with_explicit_db_dir_and_config_from_file
@@ -143,7 +143,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
      ActiveRecord::Base.use_db('cake')
-     assert_equal migration_dir, ActiveRecord::Base.migration_dir
+     assert_equal Pathname.new(migration_dir), ActiveRecord::Base.migration_dir
   end
 
   def test_migration_directory_with_explicit_migration_dir_and_config_from_file
@@ -164,7 +164,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
      ActiveRecord::Base.use_db('cake')
-     assert_equal migration_dir, ActiveRecord::Base.migration_dir
+     assert_equal Pathname.new(migration_dir), ActiveRecord::Base.migration_dir
   end
 
   def test_default_migration_directory_with_ad_hoc_config_and_only_prefix
@@ -179,7 +179,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
      ActiveRecord::Base.use_db(:prefix => 'cake_')
-     assert_equal 'db/cake/migrate', ActiveRecord::Base.migration_dir
+     assert_equal Pathname.new('db/cake/migrate'), ActiveRecord::Base.migration_dir
   end
 
   def test_default_migration_directory_with_ad_hoc_config_and_only_suffix
@@ -194,7 +194,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
      ActiveRecord::Base.use_db(:suffix => '_cake')
-     assert_equal 'db/cake/migrate', ActiveRecord::Base.migration_dir
+     assert_equal Pathname.new('db/cake/migrate'), ActiveRecord::Base.migration_dir
   end
   
   def test_default_migration_directory_with_ad_hoc_config_with_prefix_and_suffix
@@ -209,7 +209,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
      ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
-     assert_equal 'db/bake_cake/migrate', ActiveRecord::Base.migration_dir
+     assert_equal Pathname.new('db/bake_cake/migrate'), ActiveRecord::Base.migration_dir
   end
   
   def test_default_schema_file_with_config_from_file
@@ -229,7 +229,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
      ActiveRecord::Base.use_db('cake')
-     assert_equal 'db/cake/schema.rb', ActiveRecord::Base.schema_filename
+     assert_equal Pathname.new('db/cake/schema.rb'), ActiveRecord::Base.schema_filename
   end
   
   def test_schema_file_with_explicit_db_dir_and_config_from_file
@@ -249,7 +249,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
     ActiveRecord::Base.use_db('cake')
-    assert_equal 'engines/cake/db/schema.rb', ActiveRecord::Base.schema_filename
+    assert_equal Pathname.new('engines/cake/db/schema.rb'), ActiveRecord::Base.schema_filename
   end
   
   def test_schema_file_with_explicit_file_and_config_from_file
@@ -269,7 +269,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
     ActiveRecord::Base.use_db('cake')
-    assert_equal 'engines/cake/db/myschema.rb', ActiveRecord::Base.schema_filename
+    assert_equal Pathname.new('engines/cake/db/myschema.rb'), ActiveRecord::Base.schema_filename
   end
   
   def test_default_schema_file_with_ad_hoc_config_and_only_prefix
@@ -284,7 +284,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
     ActiveRecord::Base.use_db(:prefix => 'cake_')
-    assert_equal 'db/cake/schema.rb', ActiveRecord::Base.schema_filename
+    assert_equal Pathname.new('db/cake/schema.rb'), ActiveRecord::Base.schema_filename
   end
   
   def test_default_schema_file_with_ad_hoc_config_and_only_suffix
@@ -299,7 +299,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
     ActiveRecord::Base.use_db(:suffix => '_cake')
-    assert_equal 'db/cake/schema.rb', ActiveRecord::Base.schema_filename
+    assert_equal Pathname.new('db/cake/schema.rb'), ActiveRecord::Base.schema_filename
   end
   
   def test_default_schema_file_with_ad_hoc_config_with_prefix_and_suffix
@@ -314,7 +314,7 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
      ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
-     assert_equal 'db/bake_cake/schema.rb', ActiveRecord::Base.schema_filename
+     assert_equal Pathname.new('db/bake_cake/schema.rb'), ActiveRecord::Base.schema_filename
   end
   
   def test_default_seed_file_with_config_from_file
@@ -334,12 +334,12 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
      ActiveRecord::Base.use_db('cake')
-     assert_equal 'db/cake/seed.rb', ActiveRecord::Base.seed_filename
+     assert_equal Pathname.new('db/cake/seeds.rb'), ActiveRecord::Base.seed_filename
   end
   
   def test_seed_file_with_explicit_seed_file_and_config_from_file
     db_dir = 'engine/cake/db'
-    seed_file = "#{db_dir}/seed.rb"
+    seed_file = "#{db_dir}/seeds.rb"
      database_config = {
        "cake" => {'prefix' => 'cake_', 'db_dir' => db_dir},
        "pie" => {'prefix' => 'pie_'}
@@ -356,11 +356,11 @@ class UseDbPluginTest < Test::Unit::TestCase
      UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
      ActiveRecord::Base.use_db('cake')
-     assert_equal seed_file, ActiveRecord::Base.seed_filename
+     assert_equal Pathname.new(seed_file), ActiveRecord::Base.seed_filename
   end
 
   def test_seed_file_with_explicit_migration_dir_and_config_from_file
-    seed_filename = "engine/cake/db/seed.db"
+    seed_filename = "engine/cake/db/seeds.db"
     database_config = {
       "cake" => {'prefix' => 'cake_', 'seed_file' => seed_filename},
       "pie" => {'prefix' => 'pie_'}
@@ -377,7 +377,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
     
     ActiveRecord::Base.use_db('cake')
-    assert_equal seed_filename, ActiveRecord::Base.seed_filename
+    assert_equal Pathname.new(seed_filename), ActiveRecord::Base.seed_filename
   end
 
   def test_default_seed_file_with_ad_hoc_config_and_only_prefix
@@ -392,7 +392,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
     
     ActiveRecord::Base.use_db(:prefix => 'cake_')
-    assert_equal 'db/cake/seed.rb', ActiveRecord::Base.seed_filename
+    assert_equal Pathname.new('db/cake/seeds.rb'), ActiveRecord::Base.seed_filename
   end
 
   def test_default_seed_file_with_ad_hoc_config_and_only_suffix
@@ -407,7 +407,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
     
     ActiveRecord::Base.use_db(:suffix => '_cake')
-    assert_equal 'db/cake/seed.rb', ActiveRecord::Base.seed_filename
+    assert_equal Pathname.new('db/cake/seeds.rb'), ActiveRecord::Base.seed_filename
   end
   
   def test_default_seed_file_with_ad_hoc_config_with_prefix_and_suffix
@@ -422,6 +422,6 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
     
     ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
-    assert_equal 'db/bake_cake/seed.rb', ActiveRecord::Base.seed_filename
+    assert_equal Pathname.new('db/bake_cake/seeds.rb'), ActiveRecord::Base.seed_filename
   end
 end

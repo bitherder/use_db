@@ -1,3 +1,5 @@
+require 'pathname'
+
 module UseDbPlugin
   # options can have one or the other of the following options:
   #   :prefix - Specify the prefix to append to the RAILS_ENV when finding the adapter secification in database.yml
@@ -123,13 +125,13 @@ module UseDbPlugin
     path_base = options[:base] || raise(ArgumentError, ":base required")
     
     if path = @use_db_config[config_option_name.to_sym]
-      path
+      Pathname.new(path)
     elsif dir = @use_db_config[:db_dir]
-      (Pathname.new(dir)+path_base).to_s
+      Pathname.new(dir)+path_base
     elsif @use_db_config[:db_group]
-      "db/#{@use_db_config[:db_group]}/#{path_base}"
+      Pathname.new('db')+@use_db_config[:db_group]+path_base
     elsif !(elements = [@use_db_config[:prefix], @use_db_config[:suffix]].compact).empty?
-      "db/#{elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')}/#{path_base}"
+      Pathname.new('db')+elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')+path_base
     else
       raise "can't determine where to find '#{path_base}' for #{self.name}"
     end
@@ -145,7 +147,7 @@ module UseDbPlugin
   end
   
   def seed_filename
-    db_path(:option_name => :seed_file, :base => 'seed.rb')
+    db_path(:option_name => :seed_file, :base => 'seeds.rb')
   end
 end
 

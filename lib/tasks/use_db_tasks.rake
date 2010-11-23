@@ -148,8 +148,9 @@ namespace :fordb do
       
       desc 'Load the seed data from seeds.rb'
       task :seed => :environment do
-        seed_file = File.join(Rails.root, 'db', 'seeds.rb')
-        load(seed_file) if File.exist?(seed_file)
+        ActiveRecord::Base.use_db db_group
+        seed_file = ActiveRecord::Base.seed_filename
+        load(seed_file) if seed_file.exist?
       end
       
       # namespace :sessions do
