@@ -14,27 +14,36 @@ def in_db_context(db_group)
   end
 end
 
+def use_db_load_config(db_group)
+  require 'active_record'
+  
+  @original_config = ActiveRecord::Base.configurations
+  group_config = UseDbPlugin.db_config(db_group)
+  all_configs = Rails::Configuration.new.database_configuration
+  group_configs = all_configs.inject({}) do |configs, (name, config)|
+    name = name
+    if name =~ /^#{group_config[:prefix]}(.*?)#{group_config[:suffix]}$/
+      configs[$1] = config
+    end
+    configs
+  end
+  
+  ActiveRecord::Base.configurations = group_configs
+  
+  if block_given?
+    yield
+    restore_config
+  end
+end
+
+def restore_config
+  ActiveRecord::Base.configurations = @original_config
+end
+
 namespace :fordb do
   db_groups = UseDbPlugin.load_config_file('use_db.yml').keys
   db_groups.each do |db_group|    
     namespace db_group do
-      task :load_config => :rails_env do
-        require 'active_record'
-        
-        group_config = UseDbPlugin.db_config(db_group)
-        all_configs = Rails::Configuration.new.database_configuration
-        group_configs = all_configs.inject({}) do |configs, (name, config)|
-          name = name
-          if name =~ /^#{group_config[:prefix]}(.*?)#{group_config[:suffix]}$/
-            configs[$1] = config
-          end
-          configs
-        end
-        
-        ActiveRecord::Base.configurations = group_configs
-      end
-      
-      
       desc 'Raises an error if there are pending migrations'
       task :abort_if_pending_migrations => :environment do
         UseDbPlugin.with_db db_group do |conn_config|
@@ -54,37 +63,53 @@ namespace :fordb do
       
       desc "Retrieves the charset for the current environment's database"
       task :charset => :environment do
+        original_env = RAILS_ENV
         RAILS_ENV = UseDbPlugin.db_config_name(db_group)
         Rake::Task['db:charset'].actions.first.call
+        RAILS_ENV = original_env
       end
       
       desc "Retrieves the collation for the current environment's database"
       task :collation => :environment do
+        original_env = RAILS_ENV
         RAILS_ENV = UseDbPlugin.db_config_name(db_group)
         Rake::Task['db:collation'].actions.first.call
+        RAILS_ENV = original_env
       end
       
-      # TODO: @larry.baltz - implement per-databse create and drop tasks
-      # per-database create and drop tasks are not critical since they can be handled
-      # (at a gross level) by the system-wide db:create:all and db:drop:all tasks
-      #
-      # desc 'Create the database defined in config/database.yml for the current RAILS_ENV'
-      # task :create => ":db:load_config" do
-      #   create_database(ActiveRecord::Base.get_use_db_conn_spec(db_group))
-      # end
-      # 
-      # namespace :create do
-      #   desc 'Create all the local databases defined in config/database.yml'
-      #   task :all
-      # end
-      # 
-      # desc 'Drops the database for the current RAILS_ENV'
-      # task :drop
-      # 
-      # namespace :drop do
-      #   desc 'Drops all the local databases defined in config/database.yml'
-      #   task :all
-      # end
+      desc 'Create the database defined in config/database.yml for the current RAILS_ENV'
+      task :create => "db:load_config" do
+        original_env = RAILS_ENV
+        RAILS_ENV = UseDbPlugin.db_config_name(db_group)
+        Rake::Task['db:create'].actions.first.call
+        RAILS_ENV = original_env
+      end
+      
+      namespace :create do
+        desc 'Create all the local databases defined in config/database.yml'
+        task :all do
+          use_db_load_config(db_group) do
+            Rake::Task['db:create:all'].actions.first.call
+          end
+        end
+      end
+
+      desc 'Drops the database for the current RAILS_ENV'
+      task :drop do
+        use_db_load_config(db_group) do
+          config = UseDbPlugin.db_conn_spec db_group
+          drop_database(config)
+        end
+      end
+
+      namespace :drop do
+        desc 'Drops all the local databases defined in config/database.yml'
+        task :all do
+          use_db_load_config(db_group) do
+            Rake::Task['db:drop:all'].actions.first.call
+          end
+        end
+      end
       
       # namespace :fixtures do
       #   desc 'Search for a fixture given a LABEL or ID.'
@@ -119,10 +144,10 @@ namespace :fordb do
       #   task :up
       # end
       
-      # desc "Drops and recreates the database from db/schema.rb for the current environment "\
-      #   "and loads the seeds."
-      # task :reset
-      # 
+      desc "Drops and recreates the database from db/schema.rb for the current environment "\
+        "and loads the seeds."
+      task :reset => %w(drop setup).collect{|t| "fordb:#{db_group}:#{t}"}
+
       # desc "Rolls the schema back to the previous version."
       # task :rollback
       
@@ -161,8 +186,8 @@ namespace :fordb do
       #   task :create
       # end
       
-      # desc "Create the database, load the schema, and initialize with the seed data"
-      # task :setup
+      desc "Create the database, load the schema, and initialize with the seed data"
+      task :setup => %w(create schema:load seed).collect{|t| "fordb:#{db_group}:#{t}"}
       
       namespace :structure do
         # can't yet "Dump the database structure to a SQL file"
