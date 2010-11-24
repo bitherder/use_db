@@ -59,7 +59,7 @@ module UseDbPlugin
         db_group = args.shift
         options = db_spec db_group
         if args.first.kind_of? Hash
-          (args.first || {}).merge options
+          args.first.merge options
         else
           options
         end
@@ -98,11 +98,23 @@ module UseDbPlugin
   end
   
   def self.with_db(*db_spec_args)
+    config = UseDbPlugin.db_config(*db_spec_args)
     original_connection_config = ActiveRecord::Base.connection.instance_eval{@config}
     begin
       ActiveRecord::Base.use_db(*db_spec_args)
+      if(set_rails_env = config[:set_rails_env])
+        config.delete(:set_rails_env)
+        original_rails_env_const = RAILS_ENV
+        original_rails_env_method_value = Rails.env
+        Object.const_set 'RAILS_ENV', UseDbPlugin.db_config_name(config)
+        Rails.instance_eval{@_env = RAILS_ENV}
+      end
       yield
     ensure
+      if(set_rails_env)
+        Object.const_set 'RAILS_ENV', original_rails_env_const
+        Rails.instance_eval "@_env = 'orignal_rails_env_method_value'"
+      end
       ActiveRecord::Base.establish_connection original_connection_config
     end
   end
@@ -148,6 +160,18 @@ module UseDbPlugin
   
   def seed_filename
     db_path(:option_name => :seed_file, :base => 'seeds.rb')
+  end
+  
+  def fixtures_dir
+    if path = @use_db_config[:fixtures_dir]
+      Pathname.new(path)
+    elsif @use_db_config[:db_group]
+      Pathname.new('test')+'fixtures'+@use_db_config[:db_group]
+    elsif !(elements = [@use_db_config[:prefix], @use_db_config[:suffix]].compact).empty?
+      Pathname.new('test')+'fixtures'+elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')
+    else
+      raise "can't determine where to find fixtures for #{self.name}"
+    end
   end
 end
 

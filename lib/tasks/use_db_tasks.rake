@@ -1,11 +1,9 @@
-# desc "Explaining what the task does"
-# task :use_db do
-#   # Task goes here
-# end
+=begin
+  TODO: @larry.baltz: integrate db specific methods into the general rake tasks
+=end
+
 $: << Pathname.new(__FILE__).dirname + '../..'
 $: << Pathname.new(__FILE__).dirname + '..'
-
-# , :rails_env => Rails.env || 'development'
 
 require 'init'
 def in_db_context(db_group)
@@ -111,12 +109,27 @@ namespace :fordb do
         end
       end
       
-      # namespace :fixtures do
-      #   desc 'Search for a fixture given a LABEL or ID.'
-      #   task :identify
-      #   desc "Load fixtures into the current environment's database."
-      #   task :load
-      # end
+      namespace :fixtures do
+        desc 'Search for a fixture given a LABEL or ID.'
+        task :identify => :environment do
+          UseDbPlugin.with_db db_group do
+            original_path = ENV['FIXTURES_PATH']
+            ENV['FIXTURES_PATH'] ||= ActiveRecord::Base.fixtures_dir
+            Rake::Task['db:fixtures:identify'].invoke
+            ENV['FIXTURES_PATH'] = original_path
+          end
+        end
+        
+        desc "Load fixtures into the current environment's database."
+        task :load => :environment do
+          UseDbPlugin.with_db db_group, :set_rails_env => true do
+            original_path = ENV['FIXTURES_PATH']
+            ENV['FIXTURES_PATH'] ||= ActiveRecord::Base.fixtures_dir
+            Rake::Task['db:fixtures:load'].actions.first.call
+            ENV['FIXTURES_PATH'] = original_path
+          end
+        end
+      end
             
       desc "Migrate the database through scripts in db/migrate and update db/schema.rb by "\
         "invoking db:schema:dump. Target specific version with VERSION=x. Turn off output "\
@@ -130,26 +143,50 @@ namespace :fordb do
         end
       end
       
-      # namespace :migrate do
-      #   desc "Runs the 'down' for a given migration VERSION."
-      #   task :down
-      #   
-      #   desc "Rollbacks the database one migration and re migrate up."
-      #   task :redo
-      #   
-      #   desc "Resets your database using your migrations for the current environment"
-      #   task :reset
-      #   
-      #   desc "Runs the 'up' for a given migration VERSION."
-      #   task :up
-      # end
+      namespace :migrate do
+        desc 'Runs the "down" for a given migration VERSION.'
+        task :down => :environment do
+          version = ENV["VERSION"] ? ENV["VERSION"].to_i : nil
+          raise "VERSION is required" unless version
+          ActiveRecord::Base.use_db db_group
+          migration_dir = ActiveRecord::Base.migration_dir
+          ActiveRecord::Migrator.run(:down, migration_dir, version)
+          Rake::Task["fordb:#{db_group}:schema:dump"].invoke if ActiveRecord::Base.schema_format == :ruby
+        end
+
+        desc  'Rollbacks the database one migration and re migrate up. If you want to rollback more than one step, define STEP=x. Target specific version with VERSION=x.'
+        task :redo => :environment do
+          tasks = ENV["VERSION"] ? %w(migrate:down migrate:up) : %w(rollback migrate)
+          tasks.each{|t| Rake::Task["fordb:#{db_group}:#{t}"].invoke}
+        end
+
+        desc 'Resets your database using your migrations for the current environment'
+        task :reset => %w(drop create migrate).collect{|t| "fordb:#{db_group}:#{t}" }
+
+        desc 'Runs the "up" for a given migration VERSION.'
+        task :up => :environment do
+          version = ENV["VERSION"] ? ENV["VERSION"].to_i : nil
+          raise "VERSION is required" unless version
+          ActiveRecord::Base.use_db db_group
+          migration_dir = ActiveRecord::Base.migration_dir
+          ActiveRecord::Migrator.run(:up, migration_dir, version)
+          Rake::Task["fordb:#{db_group}:schema:dump"].invoke if ActiveRecord::Base.schema_format == :ruby
+        end
+      end
       
       desc "Drops and recreates the database from db/schema.rb for the current environment "\
         "and loads the seeds."
       task :reset => %w(drop setup).collect{|t| "fordb:#{db_group}:#{t}"}
 
-      # desc "Rolls the schema back to the previous version."
-      # task :rollback
+      desc 'Rolls the schema back to the previous version. Specify the number of steps with STEP=n'
+      task :rollback => :environment do
+        step = ENV['STEP'] ? ENV['STEP'].to_i : 1
+        UseDbPlugin.with_db db_group do
+          migration_dir = ActiveRecord::Base.migration_dir
+          ActiveRecord::Migrator.rollback(migration_dir, step)
+          Rake::Task["fordb:#{db_group}:schema:dump"].invoke if ActiveRecord::Base.schema_format == :ruby
+        end
+      end
       
       namespace :schema do
         desc "Create a db/schema.rb file that can be portably used against any DB supported by AR"
@@ -177,14 +214,6 @@ namespace :fordb do
         seed_file = ActiveRecord::Base.seed_filename
         load(seed_file) if seed_file.exist?
       end
-      
-      # namespace :sessions do
-      #   desc "Clear the sessions table"
-      #   task :clear
-      #   
-      #   desc "Creates a sessions migration for use with ActiveRecord::SessionStore"
-      #   task :create
-      # end
       
       desc "Create the database, load the schema, and initialize with the seed data"
       task :setup => %w(create schema:load seed).collect{|t| "fordb:#{db_group}:#{t}"}

@@ -424,4 +424,90 @@ class UseDbPluginTest < Test::Unit::TestCase
     ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
     assert_equal Pathname.new('db/bake_cake/seeds.rb'), ActiveRecord::Base.seed_filename
   end
+  
+  def test_default_fixture_dir_with_config_from_file
+     database_config = {
+       "cake" => {'prefix' => 'cake_'},
+       "pie" => {'prefix' => 'pie_'}
+     }
+     connection_spec = {
+       'cake_test' => {'adapter' => 'sqlite3'}, 
+       'cake_development' => {'adapter' => 'sqlite3'},
+       'pie_test' => {'adapter' => 'sqlite3'},
+     }
+
+     Rails.stubs(:env).returns(:test)
+
+     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
+
+     ActiveRecord::Base.use_db('cake')
+     assert_equal Pathname.new('test/fixtures/cake'), ActiveRecord::Base.fixtures_dir
+  end
+  
+  def test_fixtures_dir_with_explicit_fixtures_dir_and_config_from_file
+    fixtures_dir = 'engine/cake/test/fixtures'
+     database_config = {
+       "cake" => {'prefix' => 'cake_', 'fixtures_dir' => fixtures_dir},
+       "pie" => {'prefix' => 'pie_'}
+     }
+     connection_spec = {
+       'cake_test' => {'adapter' => 'sqlite3'}, 
+       'cake_development' => {'adapter' => 'sqlite3'},
+       'pie_test' => {'adapter' => 'sqlite3'},
+     }
+
+     Rails.stubs(:env).returns(:test)
+
+     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
+
+     ActiveRecord::Base.use_db('cake')
+     assert_equal Pathname.new(fixtures_dir), ActiveRecord::Base.fixtures_dir
+  end
+
+  def test_default_fixtures_dir_with_ad_hoc_config_and_only_prefix
+    connection_spec = {
+      'cake_test' => {'adapter' => 'sqlite3'}, 
+      'cake_development' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    
+    ActiveRecord::Base.use_db(:prefix => 'cake_')
+    assert_equal Pathname.new('test/fixtures/cake'), ActiveRecord::Base.fixtures_dir
+  end
+
+  def test_default_fixtures_dir_with_ad_hoc_config_and_only_suffix
+    connection_spec = {
+      'test_cake' => {'adapter' => 'sqlite3'}, 
+      'development_cake' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    
+    ActiveRecord::Base.use_db(:suffix => '_cake')
+    assert_equal Pathname.new('test/fixtures/cake'), ActiveRecord::Base.fixtures_dir
+  end
+  
+  def test_default_fixtures_dir_with_ad_hoc_config_with_prefix_and_suffix
+    connection_spec = {
+      'bake_test_cake' => {'adapter' => 'sqlite3'}, 
+      'bake_development_cake' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+    
+    Rails.stubs(:env).returns(:test)
+    
+    UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
+    
+    ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
+    assert_equal Pathname.new('test/fixtures/bake_cake'), ActiveRecord::Base.fixtures_dir
+  end
 end
