@@ -48,6 +48,9 @@ module UseDbPlugin
   def self.db_spec(db_group)
     option_sets = load_config_file('use_db.yml')
     options = option_sets[db_group.to_s]
+    
+    raise ArgumentError, "#{db_group.inspect} does not exist in use_db.yml" unless options
+    
     options[:db_group] = db_group
     options
   end
@@ -132,46 +135,67 @@ module UseDbPlugin
     @use_db_config
   end
   
-  def db_path(options)
-    config_option_name = options[:option_name] || raise(ArgumentError, ":option_name required")
-    path_base = options[:base] || raise(ArgumentError, ":base required")
+  def self.db_path(*args)
+    config = db_config(*args)
     
-    if path = @use_db_config[config_option_name.to_sym]
+    config_option_name = config[:option_name] || raise(ArgumentError, ":option_name required")
+    path_base = config[:base] || raise(ArgumentError, ":base required")
+    
+    if path = config[config_option_name.to_sym]
       Pathname.new(path)
-    elsif dir = @use_db_config[:db_dir]
+    elsif dir = config[:db_dir]
       Pathname.new(dir)+path_base
-    elsif @use_db_config[:db_group]
-      Pathname.new('db')+@use_db_config[:db_group]+path_base
-    elsif !(elements = [@use_db_config[:prefix], @use_db_config[:suffix]].compact).empty?
+    elsif config[:db_group]
+      Pathname.new('db')+config[:db_group]+path_base
+    elsif !(elements = [config[:prefix], config[:suffix]].compact).empty?
       Pathname.new('db')+elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')+path_base
     else
-      raise "can't determine where to find '#{path_base}' for #{self.name}"
+      raise "can't determine where to find '#{path_base}' for #{args.inspect}"
     end
     
   end
   
-  def migration_dir
-    db_path(:option_name => :migration_dir, :base => 'migrate')
+  def self.fixtures_dir(*args)
+    config = db_config(*args)
+    
+    if path = config[:fixtures_dir]
+      Pathname.new(path)
+    elsif config[:db_group]
+      Pathname.new('test')+'fixtures'+config[:db_group]
+    elsif !(elements = [config[:prefix], config[:suffix]].compact).empty?
+      Pathname.new('test')+'fixtures'+elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')
+    else
+      raise "can't determine where to find fixtures for #{args.inspect}"
+    end
   end
   
+  def self.migration_dir(*args)
+    db_path(db_config(*args).merge(:option_name => :migration_dir, :base => 'migrate'))
+  end
+  
+  def self.schema_filename(*args)
+    db_path(db_config(*args).merge(:option_name => :schema_file, :base => 'schema.rb'))
+  end
+  
+  def self.seed_filename(*args)
+    db_path(db_config(*args).merge(:option_name => :seed_file, :base => 'seeds.rb'))
+  end
+
+  def migration_dir
+    UseDbPlugin.migration_dir(@use_db_config)
+  end
+  
+  
   def schema_filename
-    db_path(:option_name => :schema_file, :base => 'schema.rb')
+    UseDbPlugin.schema_filename(@use_db_config)
   end
   
   def seed_filename
-    db_path(:option_name => :seed_file, :base => 'seeds.rb')
+    UseDbPlugin.seed_filename(@use_db_config)
   end
   
   def fixtures_dir
-    if path = @use_db_config[:fixtures_dir]
-      Pathname.new(path)
-    elsif @use_db_config[:db_group]
-      Pathname.new('test')+'fixtures'+@use_db_config[:db_group]
-    elsif !(elements = [@use_db_config[:prefix], @use_db_config[:suffix]].compact).empty?
-      Pathname.new('test')+'fixtures'+elements.map{|e| e.sub(/^_+(.*)$/, '\1').sub(/(.*)_+$/, '\1')}.join('_')
-    else
-      raise "can't determine where to find fixtures for #{self.name}"
-    end
+    UseDbPlugin.fixtures_dir(@use_db_config)
   end
 end
 
