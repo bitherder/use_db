@@ -1,3 +1,5 @@
+#TODO: @larry.baltz: figure out how to get the destroy script to work
+
 class MigrationForGenerator < MigrationGenerator
   attr_reader :db_group
   
