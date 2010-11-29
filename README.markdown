@@ -1,86 +1,173 @@
 UseDb
-by David Stevenson
-ds@elctech.com
 =====
-USAGE
+
+by David Stevenson  
+ds@elctech.com
+
+
+Usage
+-----
 
 This plugin allows you to use multiple databases in your rails application.  
 You can switch the database for a model in the following manner:
 
-class MyModel < ActiveRecord::Base
-	use_db :prefix => "secdb_", :suffix => "_cool"
-end
+    class MyModel < ActiveRecord::Base
+      use_db :prefix => "secdb_", :suffix => "_cool"
+    end
 
-"use_db" takes a prefix and a suffix (only 1 of which is required) which are prepended and appended onto the current RAILS_ENV.  
-In the above example, I would have to make the following database entries to my database.yml:
+or, if you have a `config/use_db.yml` file with a `secdb` specification (see
+description later in this file): 
 
-secdb_development_cool:
-  adapter: mysql
-  database: secdb_dev_db
-  ...
+    class MyModel < ActiveRecord::Base
+      use_db "secdb"
+    end
 
-secdb_test_cool:
-  adapater: mysql
-  database: secdb_test_db
-  ...
 
-It's often useful to create a single abstract model which all models using a different database extend from:
+`ActiveRecord::Base.use_db` can take a prefix and a suffix (only 1 of which is
+required) which are prepended and appended onto the current `RAILS_ENV`. In
+the above example, I would have to make the following database entries to my
+database.yml:
 
-class SecdbBase < ActiveRecord::Base
-	use_db :prefix => "secdb_"
-	self.abstract_class = true
-end
+    secdb_development_cool:
+      adapter: mysql
+      database: secdb_dev_db
+      ...
 
-class MyModel < SecdbBase
-  # this model will use a different database automatically now
-end
+    secdb_test_cool:
+      adapater: mysql
+      database: secdb_test_db
+      ...
 
-==========
-MIGRATIONS
+Instead of specifying the prefix and suffix directly in the `use_db` call in
+your model, you can create a `config/use_db.yml` file that specifies them and
+then reference entries in that file in your `use_db` call.
 
-To write a migration which executes on a different database, add the following method to your
-migration:
+So, for the the databases shown above, you would have a `config/use_db.yml`
+file with the following contents:
 
-class MyMigration < ActiveRecord::Migration
-  def self.database_model
-    return "SecdbBase"
-  end
+    secdb_development_cool:
+      prefix: secdb_
+      suffix: _cool
 
-  def self.up
-    ...
-  end
+And then your model could look like:
 
-  ...
-end
+    class MyModel < ActiveRecord::Base
+      use_db "secdb"
+    end
 
-The "self.database_model" call must return a string which is the name of the model whose connection
-you want to borrow when performing the migration.  If this method is undefined, the default ActiveRecord::Base
-connection is used.
+It's often useful to create a single abstract model which all models using a
+different database extend from:
 
-=======
-TESTING
+    class SecdbBase < ActiveRecord::Base
+      use_db :prefix => "secdb_"
+      self.abstract_class = true
+    end
 
-In order to test multiple databases, you must invoke a task which clones the development database
-structure and copies it into the test database, clearing out the existing test data.  There is a single
-helper method which executes this task and you invoke it as follows:
+    class MyModel < SecdbBase
+      # this model will use a different database automatically now
+    end
 
-UseDbTest.prepare_test_db(:prefix => "secdb_")
 
-Even though it might not be the best place for it, I often place a call to this in my test helper.
-You don't want it to execute for every test, so put the following guards around it:
+Migrations
+----------
 
-unless defined?(CLONED_SEC_DB_FOR_TEST)
-  UseDbTest.prepare_test_db(:prefix => "secdb_")
-  CLONED_SEC_DB_FOR_TEST = true
-end
+By default, the plugin expects a database specific directory to exist at
+`db/`_`<prefix><RAILS_ENV><suffix>`_`/`, and, for migrations, a `migrate` 
+subdirectory.
 
-========
-FIXTURES
+You can generate a new migration with:
 
-Fixtures will automatically be loaded into the correct database as long as the fixture name corresponds
-to the name of a model.  For example, if I have a model called SecdbUser who uses a different database and
-I create a fixture file called secdb_users.yml, the fixture loader will use whatever database connection
-belongs to hte SecdbUser model.
+    script/generate migration_for <db-name> <migration-name>
 
-There is currently no other way to force a fixture to use a specific database (sorry, no join tables yet),
-like there is for migrations.
+where `<db-name>` is the database name specified in the `config/use_db.yml`
+file and `<migration-name>` can be the name of the migration as you would use
+for `script/generate migration`. The migration file will be placed in your
+database specific directory and you can edit it as you normally would.
+
+To execute the migrations from your database specific migration directory, 
+there is a `rake` task, `fordb:`_`<db-name>`_`:migrate`.
+
+So, from our previous examples, if you wanted to create a migration to create
+the widget table you would need to create a directory in your
+project, 
+
+    db/secdb/migrate
+
+and then run 
+
+    script/generate migration_for secdb CreateWidgets
+
+edit your migration and then run
+
+    rake fordb:secdb:migrate
+
+The associated migration tasks are also available.  For example, the tasks
+that would be available for our `secdb` would be:
+
+    rake fordb:secdb:migrate
+    rake fordb:secdb:migrate:down
+    rake fordb:secdb:migrate:redo
+    rake fordb:secdb:migrate:reset
+    rake fordb:secdb:migrate:up
+    rake fordb:secdb:reset
+    rake fordb:secdb:rollback
+
+The per-database directory can be changed by either specifying it directly
+in the `use_db.yml` file with the `migration_dir` it will be take as the
+sub directory `migrate` under the directory specified by `db_dir`.  So,
+if we created a sub-project directory `secdb` under `RAILS_ROOT`, we could 
+specify the database specific migration directory in the `use_db.yml` file
+like:
+
+    secdb_development_cool:
+      prefix: secdb_
+      suffix: _cool
+      db_dir: secdb/db
+
+Alternately, you could specify it directly with:
+
+    secdb_development_cool:
+      prefix: secdb_
+      suffix: _cool
+      migration_dir: secdb/db/migrate
+
+
+Testing
+-------
+
+In order to test in multiple databases, you need to run database specific
+setup rails tasks:
+
+    rake fordb:<db-name>:test:load
+    rake fordb:<db-name>:test:prepare
+
+_Still to-do: integrate these tasks into the normal db:test:load and
+db:test:prepare tasks so that these tasks won't normally need to be run
+manually._
+
+Note: currently, only the `:ruby` schema format is currently supported (i.e.
+the `:sql` format is _not_ supported).
+
+Fixtures
+--------
+
+The plugin expects your database specific fixtures to be in a database
+specific subdirectory. By default it is in `test/`_`<db-name>`_`/fixtures/`,
+but you can override the default using a `fixtures_dir` entry in your
+`use_db.yml` file.
+
+In order to include your fixtures for tests, you will need to run the
+following rake task:
+
+    rake fordb:<db-name>:fixtures:load
+
+_Still to-do: integrate these tasks into the normal db:test:load and
+db:test:prepare tasks so that these tasks won't normally need to be run
+manually._
+
+TODO: bitherder: figure out what will happen with fixtures with joins, etc.
+
+_[The following may or may not be true.]_  
+There is currently no other way to
+force a fixture to use a specific database (sorry, no join tables yet), like
+there is for migrations.
