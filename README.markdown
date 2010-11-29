@@ -70,7 +70,7 @@ Migrations
 ----------
 
 By default, the plugin expects a database specific directory to exist at
-`db/`_`<prefix><RAILS_ENV><suffix>`_`/`, and, for migrations, a `migrate` 
+`db/<prefix><RAILS_ENV><suffix>/`, and, for migrations, a `migrate` 
 subdirectory.
 
 You can generate a new migration with:
@@ -83,7 +83,7 @@ for `script/generate migration`. The migration file will be placed in your
 database specific directory and you can edit it as you normally would.
 
 To execute the migrations from your database specific migration directory, 
-there is a `rake` task, `fordb:`_`<db-name>`_`:migrate`.
+there is a `rake` task, `fordb:<db-name>:migrate`.
 
 So, from our previous examples, if you wanted to create a migration to create
 the widget table you would need to create a directory in your
@@ -150,7 +150,7 @@ Fixtures
 --------
 
 The plugin expects your database specific fixtures to be in a database
-specific subdirectory. By default it is in `test/`_`<db-name>`_`/fixtures/`,
+specific subdirectory. By default it is in `test/<db-name>/fixtures/`,
 but you can override the default using a `fixtures_dir` entry in your
 `use_db.yml` file.
 
