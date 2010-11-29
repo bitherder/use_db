@@ -1,30 +1,28 @@
 UseDb
 =====
 
-by David Stevenson  
-ds@elctech.com
+This plugin allows you to use multiple databases in your rails application.  
 
 
 Usage
 -----
 
-This plugin allows you to use multiple databases in your rails application.  
 You can switch the database for a model in the following manner:
 
     class MyModel < ActiveRecord::Base
-      use_db :prefix => "secdb_", :suffix => "_cool"
+      use_db :prefix => 'secdb_', :suffix => '_cool'
     end
 
 or, if you have a `config/use_db.yml` file with a `secdb` specification (see
 description later in this file): 
 
     class MyModel < ActiveRecord::Base
-      use_db "secdb"
+      use_db 'secdb'
     end
 
 
 `ActiveRecord::Base.use_db` can take a prefix and a suffix (only 1 of which is
-required) which are prepended and appended onto the current `RAILS_ENV`. In
+required) that are prepended and appended onto the current `RAILS_ENV`. In
 the above example, I would have to make the following database entries to my
 database.yml:
 
@@ -45,21 +43,21 @@ then reference entries in that file in your `use_db` call.
 So, for the the databases shown above, you would have a `config/use_db.yml`
 file with the following contents:
 
-    secdb_development_cool:
+    secdb:
       prefix: secdb_
       suffix: _cool
 
 And then your model could look like:
 
     class MyModel < ActiveRecord::Base
-      use_db "secdb"
+      use_db 'secdb'
     end
 
 It's often useful to create a single abstract model which all models using a
 different database extend from:
 
     class SecdbBase < ActiveRecord::Base
-      use_db :prefix => "secdb_"
+      use_db 'secdb'
       self.abstract_class = true
     end
 
@@ -171,3 +169,10 @@ _[The following may or may not be true.]_
 There is currently no other way to
 force a fixture to use a specific database (sorry, no join tables yet), like
 there is for migrations.
+
+
+Attribution
+-----------
+
+by David Stevenson <ds@elctech.com>
+updates Larry Baltz (bitherder) <larry@baltz.org>
