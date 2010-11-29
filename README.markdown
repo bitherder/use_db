@@ -174,5 +174,5 @@ there is for migrations.
 Attribution
 -----------
 
-by David Stevenson <ds@elctech.com>
+by David Stevenson <ds@elctech.com>;  
 updates Larry Baltz (bitherder) <larry@baltz.org>
