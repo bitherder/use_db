@@ -320,8 +320,12 @@ namespace :fordb do
       desc "Retrieves the current schema version number"
       task :version => :environment do
         UseDbPlugin.with_db db_group do
-          puts "Current version: #{ActiveRecord::Migrator.current_version}"
+          puts "Current #{db_group} version: #{ActiveRecord::Migrator.current_version}"
         end
+      end
+      
+      Rake::Task['db:version'].enhance do
+        Rake::Task["fordb:#{db_group}:version"].invoke
       end
     end
   end
