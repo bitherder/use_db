@@ -1,7 +1,3 @@
-=begin
-  TODO: @larry.baltz: integrate db specific methods into the general rake tasks
-=end
-
 $: << Pathname.new(__FILE__).dirname + '../..'
 $: << Pathname.new(__FILE__).dirname + '..'
 
@@ -50,7 +46,20 @@ namespace :db do
       task :all => "db:migrate:reset"
     end
   end
+  
+  namespace :schema do
+    namespace :load do
+      desc "load the schema for all the databases"
+      task :all => 'db:schema:load'
+    end
+    
+    namespace :dump do
+      desc "dump the schema for all the databases"
+      task :all => 'db:schema:dump'
+    end
+  end
 end
+
 namespace :fordb do
   db_groups = UseDbPlugin.load_config_file('use_db.yml').keys
   db_groups.each do |db_group|    
@@ -59,7 +68,6 @@ namespace :fordb do
       task :abort_if_pending_migrations => :environment do
         UseDbPlugin.with_db db_group do |conn_config|
           migration_dir = ActiveRecord::Base.migration_dir
-          puts "migration_dir: #{migration_dir}"
           pending_migrations = ActiveRecord::Migrator.new(:up, migration_dir).pending_migrations
 
           if pending_migrations.any?
@@ -71,6 +79,8 @@ namespace :fordb do
           end
         end
       end
+      
+      Rake::Task['db:abort_if_pending_migrations'].enhance ["fordb:#{db_group}:abort_if_pending_migrations"]
       
       desc "Retrieves the charset for the current environment's database"
       task :charset => :environment do
@@ -234,9 +244,7 @@ namespace :fordb do
           Rake::Task["fordb:#{db_group}:schema:dump"].reenable
         end
         
-        Rake::Task["db:schema:dump"].enhance do
-          Rake::Task["fordb:#{db_group}:schema:dump"].invoke
-        end
+        Rake::Task["db:schema:dump:all"].enhance ["fordb:#{db_group}:schema:dump"]
         
         desc "Load a schema.rb file into the database"
         task :load => :environment do
@@ -247,9 +255,7 @@ namespace :fordb do
           Rake::Task["fordb:#{db_group}:schema:dump"].reenable
         end
         
-        Rake::Task["db:schema:load"].enhance do
-          Rake::Task["fordb:#{db_group}:schema:load"].invoke
-        end
+        Rake::Task["db:schema:load:all"].enhance ["fordb:#{db_group}:schema:load"]
       end
       
       desc 'Load the seed data from seeds.rb'
