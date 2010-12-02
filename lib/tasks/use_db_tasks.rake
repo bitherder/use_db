@@ -182,7 +182,7 @@ namespace :fordb do
       end
       
       Rake::Task['db:migrate'].enhance do
-        Rake::Task['fordb:#{db_group}:migrate'].invoke
+        Rake::Task["fordb:#{db_group}:migrate"].invoke
       end
       
       namespace :migrate do
