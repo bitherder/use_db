@@ -292,10 +292,12 @@ namespace :fordb do
         
         desc "Recreate the test database from the current schema.rb"
         task :load => "fordb:#{db_group}:test:purge" do
+          original_env = RAILS_ENV
           RAILS_ENV = 'test'
           Rails.instance_eval{@_env = 'test'}
           ActiveRecord::Schema.verbose = false
           Rake::Task["fordb:#{db_group}:schema:load"].invoke
+          RAILS_ENV = original_env
         end
         
         desc "Check for pending migrations and load the test schema"
