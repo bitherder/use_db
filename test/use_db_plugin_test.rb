@@ -510,4 +510,60 @@ class UseDbPluginTest < Test::Unit::TestCase
     ActiveRecord::Base.use_db(:prefix => 'bake_', :suffix => '_cake')
     assert_equal Pathname.new('test/fixtures/bake_cake'), ActiveRecord::Base.fixtures_dir
   end
+  
+  def test_db_path_with_only_db_group_as_argument_and_explicit_dir
+    db_dir = "engine/cake/db"
+    database_config = {
+      "cake" => {'prefix' => 'cake_', 'db_dir' => db_dir},
+      "pie" => {'prefix' => 'pie_'}
+    }
+    connection_spec = {
+      'cake_test' => {'adapter' => 'sqlite3'}, 
+      'cake_development' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+
+    Rails.stubs(:env).returns(:test)
+    UseDbPlugin.stubs(:load_config_file).with('database.yml').returns(connection_spec)
+    UseDbPlugin.stubs(:load_config_file).with('use_db.yml').returns(database_config)
+    
+    assert_equal Pathname.new(db_dir), UseDbPlugin.db_path('cake')
+  end
+  
+  def test_db_path_with_only_db_group_as_argument_and_group_config
+    db_dir = "db/cake"
+    database_config = {
+      "cake" => {'prefix' => 'bake_', 'suffix' => '_cake'},
+      "pie" => {'prefix' => 'pie_'}
+    }
+    connection_spec = {
+      'cake_test' => {'adapter' => 'sqlite3'}, 
+      'cake_development' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+
+    Rails.stubs(:env).returns(:test)
+    UseDbPlugin.stubs(:load_config_file).with('database.yml').returns(connection_spec)
+    UseDbPlugin.stubs(:load_config_file).with('use_db.yml').returns(database_config)
+    
+    assert_equal Pathname.new(db_dir), UseDbPlugin.db_path('cake')
+  end
+  
+  def test_db_path_with_prefix_and_suffix_as_arguments
+    db_dir = "db/bake_cake"
+    database_config = {
+      "pie" => {'prefix' => 'pie_'}
+    }
+    connection_spec = {
+      'cake_test' => {'adapter' => 'sqlite3'}, 
+      'cake_development' => {'adapter' => 'sqlite3'},
+      'pie_test' => {'adapter' => 'sqlite3'},
+    }
+
+    Rails.stubs(:env).returns(:test)
+    UseDbPlugin.stubs(:load_config_file).with('database.yml').returns(connection_spec)
+    UseDbPlugin.stubs(:load_config_file).with('use_db.yml').returns(database_config)
+    
+    assert_equal Pathname.new(db_dir), UseDbPlugin.db_path(:prefix => 'bake_', :suffix => '_cake')
+  end
 end

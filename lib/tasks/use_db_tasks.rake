@@ -8,6 +8,29 @@ def in_db_context(db_group)
   end
 end
 
+def with_rails_root(root)
+  original_root_const = RAILS_ROOT
+  Object.const_set(:RAILS_ROOT, root)
+  FileUtils.cd(root) do
+    yield root
+  end
+  Object.const_set(:RAILS_ROOT, original_root_const)
+end
+
+def with_db_specific_rails_root(db_group)
+  group_config = UseDbPlugin.db_config(db_group)
+  Dir.mktmpdir('use_db_tmp_root', Rails.root + 'tmp') do |tmp_root|
+    db_path = Rails.root+UseDbPlugin.db_path(db_group)
+    FileUtils.ln_s(Rails.root+'config', Pathname.new(tmp_root))
+    with_rails_root(tmp_root) do
+      FileUtils.ln_s(db_path, 'db')
+      use_db_load_config(db_group) do
+        yield
+      end
+    end
+  end
+end
+
 def use_db_load_config(db_group)
   require 'active_record'
   
@@ -273,21 +296,25 @@ namespace :fordb do
       task :setup => %w(create schema:load seed).collect{|t| "fordb:#{db_group}:#{t}"}
       
       namespace :structure do
-        # can't yet "Dump the database structure to a SQL file"
-        task :dump do
-          raise "fordb:#{db_group}:structure:dump not yet implemented"
+        desc "Dump the database structure to a SQL file"
+        # Fool the Rails structure:dump task into thinking it's in the 
+        # context of the directory for the alternate database under use_db
+        task :dump => :environment do
+          with_db_specific_rails_root(db_group) do
+            Rake::Task['db:structure:dump'].actions.first.call
+          end
         end
       end
       
       namespace :test do
         # can't yet "Recreate the test database from the current environment's database schema"
-        task :clone do
-          raise "fordb:#{db_group}:test:clone not implemented"
-        end
+        task :clone => %w(schema:dump test:load).map{|t| "fordb:#{db_group}:#{t}"}
         
-        # can't yet "Recreate the test databases from the development structure"
-        task :clone_structure do
-          raise "fordb:#{db_group}:test:close_structure not implemented"
+        desc "Recreate the test databases from the development structure"
+        task :clone_structure => %w(structure:dump test:purge).map{|t| "fordb:#{db_group}:#{t}"} do
+          with_db_specific_rails_root(db_group) do
+            Rake::Task['db:test:clone_structure'].actions.first.call
+          end
         end
         
         desc "Recreate the test database from the current schema.rb"
@@ -302,9 +329,12 @@ namespace :fordb do
         
         desc "Check for pending migrations and load the test schema"
         task :prepare => "fordb:#{db_group}:abort_if_pending_migrations" do
-          if defined?(ActiveRecord) && !ActiveRecord::Base.configurations.blank?
-            Rake::Task[{ :sql  => "fordb:#{db_group}:test:clone_structure", :ruby => "fordb:#{db_group}:test:load" }[ActiveRecord::Base.schema_format]].invoke
-          end
+          schema_type = UseDbPlugin.schema_format(db_group)
+          task_name = {
+            :sql  => "fordb:#{db_group}:test:clone_structure", 
+            :ruby => "fordb:#{db_group}:test:load" 
+          }[schema_type]
+          Rake::Task[task_name].invoke
         end
         
         Rake::Task["db:test:prepare"].enhance do

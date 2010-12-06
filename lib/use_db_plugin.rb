@@ -116,7 +116,7 @@ module UseDbPlugin
     ensure
       if(set_rails_env)
         Object.const_set 'RAILS_ENV', original_rails_env_const
-        Rails.instance_eval "@_env = 'orignal_rails_env_method_value'"
+        Rails.instance_eval "@_env = '#{original_rails_env_method_value}'"
       end
       ActiveRecord::Base.establish_connection original_connection_config
     end
@@ -138,10 +138,10 @@ module UseDbPlugin
   def self.db_path(*args)
     config = db_config(*args)
     
-    config_option_name = config[:option_name] || raise(ArgumentError, ":option_name required")
-    path_base = config[:base] || raise(ArgumentError, ":base required")
+    config_option_name = config[:option_name] && config[:option_name].to_sym
+    path_base = config[:base] || ''
     
-    if path = config[config_option_name.to_sym]
+    if path = config[config_option_name]
       Pathname.new(path)
     elsif dir = config[:db_dir]
       Pathname.new(dir)+path_base
@@ -179,6 +179,11 @@ module UseDbPlugin
   
   def self.seed_filename(*args)
     db_path(db_config(*args).merge(:option_name => :seed_file, :base => 'seeds.rb'))
+  end
+  
+  def self.schema_format(*args)
+    config = db_config(*args)
+    (config[:schema_format] || :ruby).to_sym
   end
 
   def migration_dir
