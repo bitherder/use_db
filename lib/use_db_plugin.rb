@@ -40,7 +40,7 @@ module UseDbPlugin
       puts msg
     end
     
-    Rails.logger.debug msg
+    Rails.logger.debug msg if Rails.logger
   end
   
   module ClassMixin
