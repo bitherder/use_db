@@ -19,6 +19,10 @@ class UseDbPluginTest < Test::Unit::TestCase
     end
 
     Rails.stubs(:root).returns(BASE_DIR+'test'+'rails_root')
+    debug_logger = stub(:debug_logger) do
+      stubs(:debug)
+    end
+    Rails.stubs(:logger).returns(debug_logger)
     FileUtils.rm_rf(Rails.root)
     Rails.root.mkpath
     (@db_dir = Rails.root+'db').mkpath
@@ -49,7 +53,7 @@ class UseDbPluginTest < Test::Unit::TestCase
 
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
 
-    assert_equal connection_spec['cake_test'], UseDbPlugin.db_conn_spec(:prefix => 'cake_')
+    assert_equal connection_spec['cake_test'].symbolize_keys, UseDbPlugin.db_conn_spec(:prefix => 'cake_')
   end
   
   def test_get_connection_using_use_db_config_file
@@ -68,7 +72,7 @@ class UseDbPluginTest < Test::Unit::TestCase
     UseDbPlugin.expects(:load_config_file).with('database.yml').returns(connection_spec)
     UseDbPlugin.expects(:load_config_file).with('use_db.yml').returns(database_config)
 
-    assert_equal connection_spec['cake_test'], UseDbPlugin.db_conn_spec('cake')
+    assert_equal connection_spec['cake_test'].symbolize_keys, UseDbPlugin.db_conn_spec('cake')
   end
   
   def test_with_db

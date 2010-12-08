@@ -20,19 +20,27 @@ module UseDbPlugin
   @@debug_print = false
   
   def self.all_use_dbs
-    return @@use_dbs
+    @@use_dbs
   end
   
   def self.all_connections
-    return @@use_dbs.map(&:connection).uniq
+    @@use_dbs.map(&:connection).uniq
   end
   
   def self.debug_print
-    return @@debug_print
+    @@debug_print
   end
   
   def self.debug_print=(newval)
     @@debug_print = newval
+  end
+  
+  def self.log(msg)
+    if @@debug_print or ENV['DEBUG'] or ENV['USE_DB_DEBUG']
+      puts msg
+    end
+    
+    Rails.logger.debug msg
   end
   
   module ClassMixin
@@ -96,7 +104,7 @@ module UseDbPlugin
           "'#{database_config_name}' expected in config/database.yml")
       end
       
-      connections[database_config_name]
+      connections[database_config_name].symbolize_keys
     end
   end
   
@@ -125,7 +133,16 @@ module UseDbPlugin
   def use_db(*args)
     @use_db_config = config = UseDbPlugin.db_config(*args)
     conn_spec = UseDbPlugin.db_conn_spec(config)
-    puts "Establishing connecting on behalf of #{self.to_s} to #{conn_spec.inspect}" if UseDbPlugin.debug_print
+    if ActiveRecord::Base.connected? && conn_spec == ActiveRecord::Base.connection.instance_eval{@config}
+      unless self == ActiveRecord::Base
+        UseDbPlugin.log "#{self} using same connection as ActiveRecord::Base"
+      end
+      ActiveRecord::Base.connection.reconnect!
+      return
+    end
+    
+    UseDbPlugin.log "Establishing connecting on behalf of #{self} to #{conn_spec.inspect}"
+    
     establish_connection(conn_spec)
     extend ClassMixin
     @@use_dbs << self unless @@use_dbs.include?(self) || self.to_s.starts_with?("TestModel")
