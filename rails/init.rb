@@ -1,5 +1,5 @@
-# Include hook code here
-
+reqire 'pathname'
+$: << Pathname.new(__FILE__).dirname+'..'+'lib'
 require "use_db_plugin"
 require "use_db_test"
 require 'active_record/fixtures'
