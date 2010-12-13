@@ -1,5 +1,5 @@
-# Include hook code here
-
+reqire 'pathname'
+$: << Pathname.new(__FILE__).dirname+'..'+'lib'
 require "use_db_plugin"
 require "use_db_test"
 require 'active_record/fixtures'
@@ -9,5 +9,3 @@ require 'override_test_callbacks'
 require "migration"
 
 ActiveRecord::Base.extend(UseDbPlugin)
-#Fixtures.send(:extend, OverrideFixtures::ClassMethods)
-#Fixtures.send(:include, OverrideFixtures::InstanceMethods)
