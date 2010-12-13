@@ -16,6 +16,8 @@ module UseDbPlugin
   # UseDbPlugin.debug_print = true   
   #
   
+  VERSION='0.1'
+  
   @@use_dbs = [ActiveRecord::Base]
   @@debug_print = false
   
