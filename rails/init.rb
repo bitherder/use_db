@@ -9,5 +9,3 @@ require 'override_test_callbacks'
 require "migration"
 
 ActiveRecord::Base.extend(UseDbPlugin)
-#Fixtures.send(:extend, OverrideFixtures::ClassMethods)
-#Fixtures.send(:include, OverrideFixtures::InstanceMethods)
