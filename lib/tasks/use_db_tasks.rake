@@ -2,6 +2,7 @@ $: << Pathname.new(__FILE__).dirname + '../..'
 $: << Pathname.new(__FILE__).dirname + '..'
 
 require 'init'
+
 def in_db_context(db_group)
   ActiveRecord::Base.with_db db_group do
     yield ActiveRecord::Base.connection.instance_eval{@config}
